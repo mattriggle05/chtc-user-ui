@@ -58,11 +58,7 @@ interface TablePage<R> {
   totalCount: number;
 }
 
-// What parseQuery reads: the router's ReadonlyURLSearchParams or a fresh URLSearchParams
-interface ParamSource {
-  get(name: string): string | null;
-  entries(): IterableIterator<[string, string]>;
-}
+type ParamSource = Pick<URLSearchParams, "get" | "keys">;
 
 const isServerTableKey = (endpoint: string) => (key: unknown) => Array.isArray(key) && key[0] === endpoint;
 
@@ -159,12 +155,8 @@ const ServerTableContent = <R extends TableData>({
         pageSize: DEFAULT_PAGE_SIZE_OPTIONS.includes(pageSize) ? pageSize : defaultPageSize,
         sort: parseSort(params.get(keys.sort), sortableColumns) ?? defaultSort,
         search: params.get(keys.search) ?? "",
-        filters: [...params.entries()].reduce<Filter[]>((filters, [key, value]) => {
-          const filter = parseFilter(key, value);
-          // A hand-edited duplicate key: the first one wins
-          const duplicate = filters.some((f) => keys.filter(f) === key);
-          return filter && !duplicate ? [...filters, filter] : filters;
-        }, []),
+        // get returns a repeated key's first value
+        filters: [...new Set(params.keys())].flatMap((key) => parseFilter(key, params.get(key) ?? "") ?? []),
       };
     },
     [keys, defaultPageSize, defaultSort, sortableColumns, parseFilter],
@@ -177,7 +169,8 @@ const ServerTableContent = <R extends TableData>({
       // Start from the live URL rather than this render's snapshot, so two changes that land
       // before the next render (a debounced search and a filter click, say) don't undo each other
       const params = new URLSearchParams(window.location.search);
-      const next = { ...parseQuery(params), ...changes };
+      const current = parseQuery(params);
+      const next = { ...current, ...changes };
 
       if (changes.page === undefined) {
         next.page = 0;
@@ -191,7 +184,7 @@ const ServerTableContent = <R extends TableData>({
       set(keys.sort, next.sort && !sameSort(next.sort, defaultSort) ? formatSort(next.sort) : undefined);
       set(keys.search, next.search || undefined);
       // Replace this table's filter params and keep everything else, other tables' and unrelated params included
-      [...params.entries()].filter(([key, value]) => parseFilter(key, value)).forEach(([key]) => params.delete(key));
+      current.filters.forEach((filter) => params.delete(keys.filter(filter)));
       next.filters.forEach((filter) => params.append(keys.filter(filter), filter.value));
 
       const queryString = params.toString();
@@ -201,7 +194,7 @@ const ServerTableContent = <R extends TableData>({
       // sync with replaceState and doesn't re-run the route (which would reset the page title)
       window.history.replaceState(null, "", queryString ? `${pathname}?${queryString}` : pathname);
     },
-    [parseQuery, parseFilter, keys, defaultPageSize, defaultSort],
+    [parseQuery, keys, defaultPageSize, defaultSort],
   );
 
   const { data, error, isLoading } = useSWR(
