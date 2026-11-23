@@ -21,13 +21,12 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 
-// Sorting and filtering happen on the server, so a column says whether it can be sorted by its id
-// and which component edits its filters; ServerTable turns that into Table's columns and SearchFilters' columnFilters
+// Sorting and filtering happen on the server, so columns are sorted by id and filtered through the API
 export interface ServerColumnConfig<R extends TableData> extends DisplayColumn<R> {
   sortable?: boolean;
   firstSortDirection?: SortState["direction"];
   FilterComponent?: FilterComponent;
-  /** The API field the column's filters apply to, when it isn't the column id */
+  /** The API field to filter on, when it isn't the column id */
   filterField?: string;
 }
 
@@ -95,7 +94,7 @@ const ServerTableContent = <R extends TableData>({
       pageSize: `${urlPrefix}size`,
       sort: `${urlPrefix}sort`,
       search: `${urlPrefix}q`,
-      // One key per column and operator, e.g. "users.cpus.ge"
+      // e.g. "users.cpus.ge"
       filter: ({ id, operator }: Filter) => `${urlPrefix}${id}.${operator}`,
     }),
     [urlPrefix],
@@ -109,7 +108,6 @@ const ServerTableContent = <R extends TableData>({
     [columns],
   );
 
-  // The columns SearchFilters offers: those with a filter component
   const filterColumns = useMemo(
     () =>
       Object.values(columns).flatMap((column) =>
@@ -120,7 +118,7 @@ const ServerTableContent = <R extends TableData>({
     [columns],
   );
 
-  // The API field for each column id; any column can be filtered from the URL, with or without a filter component
+  // Any column can be filtered from the URL, with or without a filter component
   const filterFields = useMemo(
     () =>
       new Map(
@@ -132,7 +130,6 @@ const ServerTableContent = <R extends TableData>({
     [columns],
   );
 
-  // The filter a URL param holds, when its key is this table's prefix, a column id and an operator
   const parseFilter = useCallback(
     (key: string, value: string): Filter | undefined => {
       if (!key.startsWith(urlPrefix) || value === "") return undefined;
@@ -183,7 +180,7 @@ const ServerTableContent = <R extends TableData>({
       set(keys.pageSize, next.pageSize !== defaultPageSize ? String(next.pageSize) : undefined);
       set(keys.sort, next.sort && !sameSort(next.sort, defaultSort) ? formatSort(next.sort) : undefined);
       set(keys.search, next.search || undefined);
-      // Replace this table's filter params and keep everything else, other tables' and unrelated params included
+      // Other params, including other tables' and unrelated ones, are kept
       current.filters.forEach((filter) => params.delete(keys.filter(filter)));
       next.filters.forEach((filter) => params.append(keys.filter(filter), filter.value));
 
@@ -213,18 +210,10 @@ const ServerTableContent = <R extends TableData>({
   const tableColumns = useMemo(
     () =>
       Object.values(columns).map((column) => {
-        // Columns with nothing for ServerTable to handle, actions included, go to Table as they are
-        if (!("sortable" in column || "FilterComponent" in column)) return column;
-        const {
-          sortable,
-          firstSortDirection = "asc",
-          FilterComponent: _FilterComponent,
-          filterField: _filterField,
-          ...display
-        } = column;
-        if (!sortable) return display;
+        if (!("sortable" in column && column.sortable)) return column;
+        const { firstSortDirection = "asc" } = column;
         return {
-          ...display,
+          ...column,
           // Table shows the sort icon for columns that have a sort key, and the server does the sorting
           sort: undefined,
           onSort: (next: SortState) =>
@@ -327,7 +316,6 @@ async function fetchPage<R extends TableData>(
     params.append("or", `(${searchFields.map((field) => `${field}.ilike.${search}`).join(",")})`);
   }
 
-  // Each filter maps straight onto one API constraint: field=operator.value
   query.filters.forEach(({ id, operator, value }) => {
     params.append(filterFields.get(id) ?? id, `${operator}.${value}`);
   });

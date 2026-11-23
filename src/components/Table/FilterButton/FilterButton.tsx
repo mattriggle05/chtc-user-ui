@@ -5,7 +5,6 @@ import { FilterList } from "@mui/icons-material";
 import { Button, Popover } from "@mui/material";
 import { useState } from "react";
 
-/** A Filter button that opens SearchFilters in a popover. */
 export const FilterButton = <R extends TableData>(props: SearchFiltersProps<R>) => {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
 
@@ -14,7 +13,6 @@ export const FilterButton = <R extends TableData>(props: SearchFiltersProps<R>) 
       <Button variant="field" startIcon={<FilterList />} onClick={(e) => setAnchor(e.currentTarget)}>
         Filter
       </Button>
-      {/* Popover closes on a click outside it */}
       <Popover
         open={anchor !== null}
         anchorEl={anchor}
