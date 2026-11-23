@@ -33,9 +33,9 @@ const GroupUserTable = ({ groupId }: GroupUserTableProps) => {
           href: (user) => `/users/edit/?id=${user.user_id}`,
           ariaLabel: "Go to user",
         }),
-        filter: textFilter(),
+        FilterComponent: textFilter(),
       },
-      netid: { id: "netid", name: "NetID", sortable: true, filter: textFilter() },
+      netid: { id: "netid", name: "NetID", sortable: true, FilterComponent: textFilter() },
       managed_by: {
         id: "managed_by",
         name: "Managed By",
@@ -43,7 +43,7 @@ const GroupUserTable = ({ groupId }: GroupUserTableProps) => {
           patchUrl: (user) => `/groups/${groupId}/users/${user.user_id}`,
           onSuccess: refresh,
         }),
-        filter: optionsFilter(MANAGED_BY_OPTIONS),
+        FilterComponent: optionsFilter(MANAGED_BY_OPTIONS),
       },
       remove: {
         id: "remove",

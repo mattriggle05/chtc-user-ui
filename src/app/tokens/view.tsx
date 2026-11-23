@@ -11,24 +11,28 @@ const columns: ServerTableColumns<TokenGet> = {
   edit: {
     id: "edit",
     name: "",
-    CellComponent: makeIconLinkCell<TokenGet>({ href: (token) => `/tokens/edit?id=${token.id}`, icon: <Edit />, ariaLabel: "Edit token" }),
+    CellComponent: makeIconLinkCell<TokenGet>({
+      href: (token) => `/tokens/edit?id=${token.id}`,
+      icon: <Edit />,
+      ariaLabel: "Edit token",
+    }),
   },
-  created_by: { id: "created_by", name: "Created By", sortable: true, filter: numberFilter() },
-  description: { id: "description", name: "Description", sortable: true, filter: textFilter() },
+  created_by: { id: "created_by", name: "Created By", sortable: true, FilterComponent: numberFilter() },
+  description: { id: "description", name: "Description", sortable: true, FilterComponent: textFilter() },
   created_at: {
     id: "created_at",
     name: "Created At",
     sortable: true,
     firstSortDirection: "desc",
     CellComponent: DateCell,
-    filter: dateRangeFilter(),
+    FilterComponent: dateRangeFilter(),
   },
   expires_at: {
     id: "expires_at",
     name: "Expires At",
     sortable: true,
     CellComponent: DateCell,
-    filter: dateRangeFilter(),
+    FilterComponent: dateRangeFilter(),
   },
 };
 

@@ -18,18 +18,18 @@ const columns: ServerTableColumns<Project> = {
       ariaLabel: "Edit project",
     }),
   },
-  name: { id: "name", name: "Name", sortable: true, filter: textFilter() },
+  name: { id: "name", name: "Name", sortable: true, FilterComponent: textFilter() },
   // The API sorts staff1 by user id, not name, so this column isn't sortable
   staff1: { id: "staff1", name: "Staff", value: (project) => project.staff1?.name ?? project.staff1?.email1 ?? "" },
-  status: { id: "status", name: "Status", sortable: true, filter: optionsFilter(PROJECT_STATUS_OPTIONS) },
-  url: { id: "url", name: "Project URL", CellComponent: UrlCell, filter: textFilter() },
+  status: { id: "status", name: "Status", sortable: true, FilterComponent: optionsFilter(PROJECT_STATUS_OPTIONS) },
+  url: { id: "url", name: "Project URL", CellComponent: UrlCell, FilterComponent: textFilter() },
   last_contact: {
     id: "last_contact",
     name: "Last Contact",
     sortable: true,
     firstSortDirection: "desc",
     CellComponent: DateCell,
-    filter: dateRangeFilter(),
+    FilterComponent: dateRangeFilter(),
   },
 };
 

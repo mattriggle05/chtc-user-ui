@@ -33,7 +33,15 @@ const tiebreakers: SortState[] = [
 ];
 
 /** A filled star on the primary project; admins can star another project to make it primary */
-function makePrimaryProjectCell({ userId, adminView, onChange }: { userId: number; adminView: boolean; onChange: () => void }) {
+function makePrimaryProjectCell({
+  userId,
+  adminView,
+  onChange,
+}: {
+  userId: number;
+  adminView: boolean;
+  onChange: () => void;
+}) {
   const PrimaryProjectCell = ({ row: project }: CellComponentProps<JoinedProjectView, keyof JoinedProjectView>) => {
     const { showAlert } = useAlert();
 
@@ -44,7 +52,12 @@ function makePrimaryProjectCell({ userId, adminView, onChange }: { userId: numbe
           // The primary project is changed by starring another one, so this does nothing
           // Same 48px box and padding as ConfirmButton so the stars line up
           <Box sx={{ width: 48, height: 48, p: 0.5 }}>
-            <IconButton aria-label={`${project.project_name} is the primary project`} color="error" disableRipple sx={{ cursor: "default" }}>
+            <IconButton
+              aria-label={`${project.project_name} is the primary project`}
+              color="error"
+              disableRipple
+              sx={{ cursor: "default" }}
+            >
               <Star />
             </IconButton>
           </Box>
@@ -87,21 +100,21 @@ const UserProjectTable = ({ userId, adminView = false }: UserProjectTableProps) 
           href: (project) => `/projects/edit/?id=${project.project_id}`,
           ariaLabel: "Go to project",
         }),
-        filter: textFilter(),
+        FilterComponent: textFilter(),
       },
-      role: { id: "role", name: "Role", sortable: true, filter: optionsFilter(ROLE_OPTIONS) },
+      role: { id: "role", name: "Role", sortable: true, FilterComponent: optionsFilter(ROLE_OPTIONS) },
       is_primary: {
         id: "is_primary",
         name: "Is Primary",
         sortable: true,
         CellComponent: makePrimaryProjectCell({ userId, adminView, onChange: refresh }),
-        filter: booleanFilter(),
+        FilterComponent: booleanFilter(),
       },
       project_status: {
         id: "project_status",
         name: "Status",
         sortable: true,
-        filter: optionsFilter(PROJECT_STATUS_OPTIONS),
+        FilterComponent: optionsFilter(PROJECT_STATUS_OPTIONS),
       },
       project_last_contact: {
         id: "project_last_contact",
@@ -109,13 +122,13 @@ const UserProjectTable = ({ userId, adminView = false }: UserProjectTableProps) 
         sortable: true,
         firstSortDirection: "desc",
         CellComponent: DateCell,
-        filter: dateRangeFilter(),
+        FilterComponent: dateRangeFilter(),
       },
       project_accounting_group: {
         id: "project_accounting_group",
         name: "Accounting Group",
         sortable: true,
-        filter: textFilter(),
+        FilterComponent: textFilter(),
       },
       ...(adminView && {
         managed_by: {
@@ -125,7 +138,7 @@ const UserProjectTable = ({ userId, adminView = false }: UserProjectTableProps) 
             patchUrl: (project) => `/projects/${project.project_id}/users/${userId}`,
             onSuccess: refresh,
           }),
-          filter: optionsFilter(MANAGED_BY_OPTIONS),
+          FilterComponent: optionsFilter(MANAGED_BY_OPTIONS),
         },
         remove: {
           id: "remove",

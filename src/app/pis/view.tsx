@@ -18,16 +18,16 @@ const columns: ServerTableColumns<PiProjectView> = {
       ariaLabel: "Edit user",
     }),
   },
-  name: { id: "name", name: "Name", sortable: true, filter: textFilter() },
-  project_name: { id: "project_name", name: "Project Name", sortable: true, filter: textFilter() },
-  email1: { id: "email1", name: "Email", sortable: true, CellComponent: EmailCell, filter: textFilter() },
+  name: { id: "name", name: "Name", sortable: true, FilterComponent: textFilter() },
+  project_name: { id: "project_name", name: "Project Name", sortable: true, FilterComponent: textFilter() },
+  email1: { id: "email1", name: "Email", sortable: true, CellComponent: EmailCell, FilterComponent: textFilter() },
   phone1: {
     id: "phone1",
     name: "Phone",
     value: (pi) => (pi.phone1 ? formatPhoneNumber(pi.phone1) : ""),
-    filter: textFilter(),
+    FilterComponent: textFilter(),
   },
-  netid: { id: "netid", name: "NetID", sortable: true, filter: textFilter() },
+  netid: { id: "netid", name: "NetID", sortable: true, FilterComponent: textFilter() },
 };
 
 // Newest first; the view has no id of its own, so this goes by the project's

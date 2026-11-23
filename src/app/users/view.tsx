@@ -11,11 +11,15 @@ const columns: ServerTableColumns<User> = {
   edit: {
     id: "edit",
     name: "",
-    CellComponent: makeIconLinkCell<User>({ href: (user) => `/users/edit?id=${user.id}`, icon: <Edit />, ariaLabel: "Edit user" }),
+    CellComponent: makeIconLinkCell<User>({
+      href: (user) => `/users/edit?id=${user.id}`,
+      icon: <Edit />,
+      ariaLabel: "Edit user",
+    }),
   },
-  name: { id: "name", name: "Name", sortable: true, filter: textFilter() },
-  email1: { id: "email1", name: "Email", sortable: true, CellComponent: EmailCell, filter: textFilter() },
-  netid: { id: "netid", name: "NetID", sortable: true, filter: textFilter() },
+  name: { id: "name", name: "Name", sortable: true, FilterComponent: textFilter() },
+  email1: { id: "email1", name: "Email", sortable: true, CellComponent: EmailCell, FilterComponent: textFilter() },
+  netid: { id: "netid", name: "NetID", sortable: true, FilterComponent: textFilter() },
   submit_nodes: {
     id: "submit_nodes",
     name: "Submit Nodes",
@@ -28,7 +32,7 @@ const columns: ServerTableColumns<User> = {
     sortable: true,
     firstSortDirection: "desc",
     CellComponent: DateCell,
-    filter: dateRangeFilter(),
+    FilterComponent: dateRangeFilter(),
   },
 };
 

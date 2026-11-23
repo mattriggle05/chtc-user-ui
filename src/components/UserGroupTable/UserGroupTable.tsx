@@ -36,7 +36,7 @@ const UserGroupTable = ({ userId, adminView = false }: UserGroupTableProps) => {
             ariaLabel: "Go to group",
           }),
         }),
-        filter: textFilter(),
+        FilterComponent: textFilter(),
       },
       // The API sorts point_of_contact by user id, not name, so this column isn't sortable
       point_of_contact: {
@@ -44,7 +44,7 @@ const UserGroupTable = ({ userId, adminView = false }: UserGroupTableProps) => {
         name: "Point Of Contact",
         value: (group) => group.point_of_contact?.name ?? group.point_of_contact?.email1 ?? "",
       },
-      unix_gid: { id: "unix_gid", name: "Unix GID", sortable: true, filter: numberFilter() },
+      unix_gid: { id: "unix_gid", name: "Unix GID", sortable: true, FilterComponent: numberFilter() },
       managed_by: {
         id: "managed_by",
         name: "Managed By",
@@ -52,7 +52,7 @@ const UserGroupTable = ({ userId, adminView = false }: UserGroupTableProps) => {
           patchUrl: (group) => `/groups/${group.group_id}/users/${userId}`,
           onSuccess: refresh,
         }),
-        filter: optionsFilter(MANAGED_BY_OPTIONS),
+        FilterComponent: optionsFilter(MANAGED_BY_OPTIONS),
       },
       ...(adminView && {
         remove: {

@@ -7,14 +7,12 @@ import FilterButton from "@/src/components/Table/FilterButton/FilterButton";
 import {
   DEFAULT_PAGE_SIZE,
   DEFAULT_PAGE_SIZE_OPTIONS,
-  isDateRange,
+  FILTER_OPERATORS,
   Table,
   type ActionConfig,
   type DisplayColumn,
-  type FilterColumn,
-  type FilterDef,
-  type FilterKind,
-  type FilterValues,
+  type Filter,
+  type FilterComponent,
   type SortState,
   type TableData,
 } from "@chtc/web-components";
@@ -24,18 +22,13 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import useSWR, { useSWRConfig } from "swr";
 
 // Sorting and filtering happen on the server, so a column says whether it can be sorted by its id
-// and how it's filtered; ServerTable turns that into Table's columns and SearchFilters' columnFilters
+// and which component edits its filters; ServerTable turns that into Table's columns and SearchFilters' columnFilters
 export interface ServerColumnConfig<R extends TableData> extends DisplayColumn<R> {
   sortable?: boolean;
   firstSortDirection?: SortState["direction"];
-  filter?: FilterDef;
-  /** The API field the filter applies to, when it isn't the column id */
+  FilterComponent?: FilterComponent;
+  /** The API field the column's filters apply to, when it isn't the column id */
   filterField?: string;
-}
-
-// A filterable column with the API field its filter applies to
-interface ServerFilterColumn<R extends TableData> extends FilterColumn<R> {
-  field: string;
 }
 
 export type ServerTableColumns<R extends TableData> = Record<string, ServerColumnConfig<R> | ActionConfig<R>>;
@@ -57,7 +50,7 @@ interface TableQuery {
   pageSize: number;
   sort?: SortState;
   search: string;
-  filters: FilterValues;
+  filters: Filter[];
 }
 
 interface TablePage<R> {
@@ -65,9 +58,10 @@ interface TablePage<R> {
   totalCount: number;
 }
 
-// Something with URLSearchParams.get: the router's ReadonlyURLSearchParams or a fresh URLSearchParams
+// What parseQuery reads: the router's ReadonlyURLSearchParams or a fresh URLSearchParams
 interface ParamSource {
   get(name: string): string | null;
+  entries(): IterableIterator<[string, string]>;
 }
 
 const isServerTableKey = (endpoint: string) => (key: unknown) => Array.isArray(key) && key[0] === endpoint;
@@ -105,7 +99,8 @@ const ServerTableContent = <R extends TableData>({
       pageSize: `${urlPrefix}size`,
       sort: `${urlPrefix}sort`,
       search: `${urlPrefix}q`,
-      filter: (id: string) => `${urlPrefix}${id}`,
+      // One key per column and operator, e.g. "users.cpus.ge"
+      filter: ({ id, operator }: Filter) => `${urlPrefix}${id}.${operator}`,
     }),
     [urlPrefix],
   );
@@ -118,15 +113,40 @@ const ServerTableContent = <R extends TableData>({
     [columns],
   );
 
-  // What SearchFilters and fetchPage need from each column that has a filter
+  // The columns SearchFilters offers: those with a filter component
   const filterColumns = useMemo(
     () =>
       Object.values(columns).flatMap((column) =>
-        "filter" in column && column.filter
-          ? [{ id: column.id, name: column.name, filter: column.filter, field: column.filterField ?? column.id }]
+        "FilterComponent" in column && column.FilterComponent
+          ? [{ id: column.id, name: column.name, FilterComponent: column.FilterComponent }]
           : [],
       ),
     [columns],
+  );
+
+  // The API field for each column id; any column can be filtered from the URL, with or without a filter component
+  const filterFields = useMemo(
+    () =>
+      new Map(
+        Object.values(columns).map((column) => [
+          column.id,
+          ("filterField" in column && column.filterField) || column.id,
+        ]),
+      ),
+    [columns],
+  );
+
+  // The filter a URL param holds, when its key is this table's prefix, a column id and an operator
+  const parseFilter = useCallback(
+    (key: string, value: string): Filter | undefined => {
+      if (!key.startsWith(urlPrefix) || value === "") return undefined;
+      const parts = key.slice(urlPrefix.length).split(".");
+      if (parts.length !== 2) return undefined;
+      const [id, op] = parts;
+      const operator = FILTER_OPERATORS.find((o) => o === op);
+      return operator && filterFields.has(id) ? { id, operator, value } : undefined;
+    },
+    [urlPrefix, filterFields],
   );
 
   const parseQuery = useCallback(
@@ -139,17 +159,15 @@ const ServerTableContent = <R extends TableData>({
         pageSize: DEFAULT_PAGE_SIZE_OPTIONS.includes(pageSize) ? pageSize : defaultPageSize,
         sort: parseSort(params.get(keys.sort), sortableColumns) ?? defaultSort,
         search: params.get(keys.search) ?? "",
-        filters: Object.fromEntries(
-          filterColumns.flatMap(({ id, filter }) => {
-            const raw = params.get(keys.filter(id));
-            // decode rejects anything that isn't a valid value for this filter
-            const value = raw === null ? undefined : filter.decode(raw);
-            return value === undefined ? [] : [[id, value]];
-          }),
-        ),
+        filters: [...params.entries()].reduce<Filter[]>((filters, [key, value]) => {
+          const filter = parseFilter(key, value);
+          // A hand-edited duplicate key: the first one wins
+          const duplicate = filters.some((f) => keys.filter(f) === key);
+          return filter && !duplicate ? [...filters, filter] : filters;
+        }, []),
       };
     },
-    [keys, defaultPageSize, defaultSort, sortableColumns, filterColumns],
+    [keys, defaultPageSize, defaultSort, sortableColumns, parseFilter],
   );
 
   const query = useMemo(() => parseQuery(searchParams), [parseQuery, searchParams]);
@@ -172,9 +190,9 @@ const ServerTableContent = <R extends TableData>({
       set(keys.pageSize, next.pageSize !== defaultPageSize ? String(next.pageSize) : undefined);
       set(keys.sort, next.sort && !sameSort(next.sort, defaultSort) ? formatSort(next.sort) : undefined);
       set(keys.search, next.search || undefined);
-      filterColumns.forEach(({ id, filter }) => {
-        set(keys.filter(id), filter.encode(next.filters[id]));
-      });
+      // Replace this table's filter params and keep everything else, other tables' and unrelated params included
+      [...params.entries()].filter(([key, value]) => parseFilter(key, value)).forEach(([key]) => params.delete(key));
+      next.filters.forEach((filter) => params.append(keys.filter(filter), filter.value));
 
       const queryString = params.toString();
       const { pathname } = window.location;
@@ -183,12 +201,12 @@ const ServerTableContent = <R extends TableData>({
       // sync with replaceState and doesn't re-run the route (which would reset the page title)
       window.history.replaceState(null, "", queryString ? `${pathname}?${queryString}` : pathname);
     },
-    [parseQuery, keys, defaultPageSize, defaultSort, filterColumns],
+    [parseQuery, parseFilter, keys, defaultPageSize, defaultSort],
   );
 
   const { data, error, isLoading } = useSWR(
     [endpoint, query],
-    ([, q]: [string, TableQuery]) => fetchPage<R>(endpoint, q, { tiebreakers, searchFields, filterColumns }),
+    ([, q]: [string, TableQuery]) => fetchPage<R>(endpoint, q, { tiebreakers, searchFields, filterFields }),
     { keepPreviousData: true },
   );
 
@@ -203,8 +221,14 @@ const ServerTableContent = <R extends TableData>({
     () =>
       Object.values(columns).map((column) => {
         // Columns with nothing for ServerTable to handle, actions included, go to Table as they are
-        if (!("sortable" in column || "filter" in column)) return column;
-        const { sortable, firstSortDirection = "asc", filter: _filter, filterField: _filterField, ...display } = column;
+        if (!("sortable" in column || "FilterComponent" in column)) return column;
+        const {
+          sortable,
+          firstSortDirection = "asc",
+          FilterComponent: _FilterComponent,
+          filterField: _filterField,
+          ...display
+        } = column;
         if (!sortable) return display;
         return {
           ...display,
@@ -289,8 +313,8 @@ async function fetchPage<R extends TableData>(
   {
     tiebreakers = [],
     searchFields = [],
-    filterColumns = [],
-  }: { tiebreakers?: SortState[]; searchFields?: string[]; filterColumns?: ServerFilterColumn<R>[] },
+    filterFields,
+  }: { tiebreakers?: SortState[]; searchFields?: string[]; filterFields: Map<string, string> },
 ): Promise<TablePage<R>> {
   const params = new URLSearchParams({
     page: String(query.page),
@@ -310,10 +334,9 @@ async function fetchPage<R extends TableData>(
     params.append("or", `(${searchFields.map((field) => `${field}.ilike.${search}`).join(",")})`);
   }
 
-  filterColumns.forEach(({ id, field, filter }) => {
-    const value = query.filters[id];
-    if (value === undefined) return;
-    filterParams(field, filter.kind, value).forEach(([key, param]) => params.append(key, param));
+  // Each filter maps straight onto one API constraint: field=operator.value
+  query.filters.forEach(({ id, operator, value }) => {
+    params.append(filterFields.get(id) ?? id, `${operator}.${value}`);
   });
 
   const response = await apiFetch(`${endpoint}?${params}`);
@@ -325,47 +348,6 @@ async function fetchPage<R extends TableData>(
     data: await response.json(),
     totalCount: parseInt(response.headers.get("X-Total-Count") ?? "0", 10),
   };
-}
-
-/**
- * The one place filter values become API query params. A FilterKind from web-components with no case
- * here throws, so the table shows an error instead of silently ignoring the filter.
- */
-function filterParams(field: string, kind: FilterKind, value: unknown): [string, string][] {
-  switch (kind) {
-    case "options":
-      return [[field, `eq.${value}`]];
-    case "boolean":
-      return [[field, `is.${value}`]];
-    case "range":
-      if (!Array.isArray(value)) return [];
-      return [
-        [field, `ge.${value[0]}`],
-        [field, `le.${value[1]}`],
-      ];
-    case "dateRange": {
-      if (!isDateRange(value)) return [];
-      const params: [string, string][] = [];
-      if (value.from) params.push([field, `ge.${value.from}`]);
-      // The To day is included, so the range ends where the next day starts
-      if (value.to) params.push([field, `lt.${nextDay(value.to)}`]);
-      return params;
-    }
-    case "text":
-      // ilike matches the text anywhere in the field, ignoring case
-      return [[field, `ilike.${value}`]];
-    case "number":
-      return [[field, `eq.${value}`]];
-    default:
-      throw new Error(`"${kind}" does not have a API filter params handler`);
-  }
-}
-
-// The "YYYY-MM-DD" date after the given one
-function nextDay(date: string): string {
-  const next = new Date(`${date}T00:00`);
-  next.setDate(next.getDate() + 1);
-  return [next.getFullYear(), next.getMonth() + 1, next.getDate()].map((n) => String(n).padStart(2, "0")).join("-");
 }
 
 // Sorts are written to the URL as the column id, prefixed with "-" when descending

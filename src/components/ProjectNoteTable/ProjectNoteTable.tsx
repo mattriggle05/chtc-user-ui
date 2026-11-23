@@ -24,18 +24,22 @@ const ProjectNoteTable = ({ projectId }: ProjectNoteTableProps) => {
     (): ServerTableColumns<Note> => ({
       // The API sorts author by user id, not name, so this column isn't sortable
       author: { id: "author", name: "Author", value: (note) => note.author?.name ?? "" },
-      ticket: { id: "ticket", name: "Ticket", sortable: true, filter: textFilter() },
-      note: { id: "note", name: "Note", CellComponent: TruncatedTextCell, filter: textFilter() },
+      ticket: { id: "ticket", name: "Ticket", sortable: true, FilterComponent: textFilter() },
+      note: { id: "note", name: "Note", CellComponent: TruncatedTextCell, FilterComponent: textFilter() },
       date: {
         id: "date",
         name: "Date",
         sortable: true,
         firstSortDirection: "desc",
         CellComponent: DateCell,
-        filter: dateRangeFilter(),
+        FilterComponent: dateRangeFilter(),
       },
       // Users without a NetID show their name instead of an empty entry
-      users: { id: "users", name: "Users", value: (note) => note.users.map((user) => user.netid || user.name).join(", ") },
+      users: {
+        id: "users",
+        name: "Users",
+        value: (note) => note.users.map((user) => user.netid || user.name).join(", "),
+      },
       edit: {
         id: "edit",
         name: "Edit",

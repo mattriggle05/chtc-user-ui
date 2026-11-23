@@ -32,7 +32,7 @@ const columns: ServerTableColumns<UserForm> = {
     id: "created_by",
     name: "Created By",
     value: (application) => application.created_by?.name ?? application.created_by?.email1 ?? "",
-    filter: textFilter(),
+    FilterComponent: textFilter(),
     // created_by is the user's id; the API has the requester's name as its own field
     filterField: "created_by_name",
   },
@@ -40,7 +40,7 @@ const columns: ServerTableColumns<UserForm> = {
     id: "status",
     name: "Status",
     sortable: true,
-    filter: optionsFilter([
+    FilterComponent: optionsFilter([
       { value: "PENDING", label: "Pending" },
       { value: "APPROVED", label: "Approved" },
       { value: "DENIED", label: "Denied" },
@@ -51,14 +51,14 @@ const columns: ServerTableColumns<UserForm> = {
     name: "PI",
     sortable: true,
     value: (application) => application.pi_name ?? application.pi_email ?? application.pi_id ?? "",
-    filter: textFilter(),
+    FilterComponent: textFilter(),
   },
   position: {
     id: "position",
     name: "Position",
     sortable: true,
     value: (application) => formatPosition(application.position),
-    filter: optionsFilter(positionOptions),
+    FilterComponent: optionsFilter(positionOptions),
   },
   created_at: {
     id: "created_at",
@@ -66,7 +66,7 @@ const columns: ServerTableColumns<UserForm> = {
     sortable: true,
     firstSortDirection: "desc",
     CellComponent: DateCell,
-    filter: dateRangeFilter(),
+    FilterComponent: dateRangeFilter(),
   },
 };
 

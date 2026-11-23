@@ -48,19 +48,27 @@ const ProjectUserTable = ({ projectId }: ProjectUserTableProps) => {
         id: "name",
         name: "Name",
         sortable: true,
-        CellComponent: makeLinkedTextCell<JoinedProjectView>({ href: (user) => `/users/edit/?id=${user.id}`, ariaLabel: "Go to user" }),
-        filter: textFilter(),
+        CellComponent: makeLinkedTextCell<JoinedProjectView>({
+          href: (user) => `/users/edit/?id=${user.id}`,
+          ariaLabel: "Go to user",
+        }),
+        FilterComponent: textFilter(),
       },
-      role: { id: "role", name: "Role", sortable: true, filter: optionsFilter(ROLE_OPTIONS) },
-      last_note_ticket: { id: "last_note_ticket", name: "Tickets Assigned", sortable: true, filter: textFilter() },
-      email1: { id: "email1", name: "Email", sortable: true, filter: textFilter() },
-      netid: { id: "netid", name: "NetID", sortable: true, filter: textFilter() },
+      role: { id: "role", name: "Role", sortable: true, FilterComponent: optionsFilter(ROLE_OPTIONS) },
+      last_note_ticket: {
+        id: "last_note_ticket",
+        name: "Tickets Assigned",
+        sortable: true,
+        FilterComponent: textFilter(),
+      },
+      email1: { id: "email1", name: "Email", sortable: true, FilterComponent: textFilter() },
+      netid: { id: "netid", name: "NetID", sortable: true, FilterComponent: textFilter() },
       active: {
         id: "active",
         name: "Active",
         sortable: true,
         value: (user) => (user.active == null ? "" : user.active ? "Yes" : "No"),
-        filter: booleanFilter("Active", "Inactive"),
+        FilterComponent: booleanFilter("Active", "Inactive"),
       },
       managed_by: {
         id: "managed_by",
@@ -69,7 +77,7 @@ const ProjectUserTable = ({ projectId }: ProjectUserTableProps) => {
           patchUrl: (user) => `/projects/${projectId}/users/${user.id}`,
           onSuccess: refresh,
         }),
-        filter: optionsFilter(MANAGED_BY_OPTIONS),
+        FilterComponent: optionsFilter(MANAGED_BY_OPTIONS),
       },
       remove: {
         id: "remove",
@@ -149,7 +157,11 @@ const ProjectUserTable = ({ projectId }: ProjectUserTableProps) => {
     <Box>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
         <Typography variant="h6">Project Members</Typography>
-        <Button variant="contained" startIcon={showAddForm ? <ArrowDropUp /> : <ArrowDropDown />} onClick={() => setShowAddForm(!showAddForm)}>
+        <Button
+          variant="contained"
+          startIcon={showAddForm ? <ArrowDropUp /> : <ArrowDropDown />}
+          onClick={() => setShowAddForm(!showAddForm)}
+        >
           {showAddForm ? "Hide Form" : "Add Member"}
         </Button>
       </Box>
